@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity"
+            prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: #f5f5f5;"
+            xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.techblue.techblueclient.AlunoDashboardController">
+
+    <!-- TOP: CABEÇALHO -->
+    <top>
+        <HBox prefHeight="70.0" style="-fx-background-color: #1e3c72; -fx-padding: 15px;"
+              BorderPane.alignment="CENTER">
+            <children>
+                <Label style="-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;"
+                       text="BlueTech - Plataforma de TG" />
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label fx:id="nomeAlunoLabel" text="Bem-vindo, Aluno!" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+            </children>
+        </HBox>
+    </top>
+
+    <!-- CENTER: CONTEÚDO PRINCIPAL - TUDO EM UMA TELA SÓ -->
+    <center>
+        <VBox style="-fx-padding: 20px; -fx-spacing: 15px;" BorderPane.alignment="CENTER">
+            <children>
+                <!-- BARRA DE STATUS -->
+                <HBox spacing="20" alignment="CENTER_LEFT" style="-fx-padding: 15px; -fx-background-color: white; -fx-border-radius: 5px;">
+                    <children>
+                        <VBox spacing="5">
+                            <Label text="STATUS ATUAL" style="-fx-font-weight: bold; -fx-text-fill: #666; -fx-font-size: 12px;"/>
+                            <Label fx:id="statusLabel" text="📝 Em Revisão" style="-fx-text-fill: #e67e22; -fx-font-weight: bold;"/>
+                        </VBox>
+
+                        <VBox spacing="5">
+                            <Label text="ÚLTIMO FEEDBACK" style="-fx-font-weight: bold; -fx-text-fill: #666; -fx-font-size: 12px;"/>
+                            <Label fx:id="feedbackLabel" text="⏳ Aguardando professor" style="-fx-text-fill: #666;"/>
+                        </VBox>
+
+                        <VBox spacing="5">
+                            <Label text="PRÓXIMA ENTREGA" style="-fx-font-weight: bold; -fx-text-fill: #666; -fx-font-size: 12px;"/>
+                            <Label fx:id="dataLabel" text="📅 30/11/2025" style="-fx-text-fill: #666;"/>
+                        </VBox>
+
+                        <Region HBox.hgrow="ALWAYS"/>
+
+                        <Button fx:id="enviarButton" text="📤 Enviar Nova Versão"
+                                style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 15px;"
+                                onAction="#onEnviarNovaVersao"/>
+                    </children>
+                </HBox>
+
+                <!-- NOTIFICAÇÕES -->
+                <HBox fx:id="notificacaoBox" spacing="10" alignment="CENTER_LEFT"
+                      style="-fx-padding: 10px; -fx-background-color: #e8f4fd; -fx-border-radius: 5px;"
+                      visible="false">
+                    <children>
+                        <Label text="🔔" style="-fx-font-size: 14px;"/>
+                        <Label fx:id="notificacaoLabel" text="" style="-fx-text-fill: #2980b9;"/>
+                    </children>
+                </HBox>
+
+                <!-- SEÇÃO 1: EDITOR DO TRABALHO -->
+                <VBox spacing="15" style="-fx-padding: 15px; -fx-background-color: white; -fx-border-radius: 5px;">
+                    <children>
+                        <Label text="✏️ EDITAR TRABALHO DE GRADUAÇÃO" style="-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: #2c3e50;"/>
+
+                        <TextArea fx:id="editorTextArea" prefHeight="200.0" prefWidth="900.0"
+                                  style="-fx-border-color: #3498db; -fx-border-radius: 5px; -fx-font-family: 'Arial'; -fx-font-size: 13px;"
+                                  wrapText="true"
+                                  promptText="Digite o conteúdo do seu Trabalho de Graduação aqui..."/>
+
+                        <HBox spacing="10" alignment="CENTER_RIGHT">
+                            <children>
+                                <Button fx:id="cancelarButton" text="❌ Cancelar"
+                                        style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-padding: 8px 15px;"
+                                        onAction="#onCancelarEdicao"/>
+                                <Button fx:id="rascunhoButton" text="💾 Salvar Rascunho"
+                                        style="-fx-background-color: #f39c12; -fx-text-fill: white; -fx-padding: 8px 15px;"
+                                        onAction="#onSalvarRascunho"/>
+                                <Button fx:id="enviarRevisaoButton" text="📤 Enviar para Revisão"
+                                        style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-padding: 8px 15px;"
+                                        onAction="#onEnviarParaRevisao"/>
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+
+                <!-- SEÇÃO 2: VISUALIZAÇÃO + FEEDBACKS LADO A LADO -->
+                <HBox spacing="20">
+                    <children>
+                        <!-- VISUALIZAÇÃO -->
+                        <!-- HISTÓRICO DE VERSÕES ENVIADAS -->
+                        <VBox spacing="10" prefWidth="450.0" HBox.hgrow="ALWAYS">
+                            <children>
+                                <Label text="📋 HISTÓRICO DE VERSÕES" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                                <TableView fx:id="historicoTableView" prefHeight="150.0" prefWidth="450.0"
+                                           style="-fx-border-color: #ddd; -fx-border-radius: 5px;">
+                                    <columns>
+                                        <TableColumn fx:id="versaoColumn" prefWidth="80" text="Versão" />
+                                        <TableColumn fx:id="dataColumn" prefWidth="120" text="Data Envio" />
+                                        <TableColumn fx:id="statusColumn" prefWidth="100" text="Status" />
+                                        <TableColumn fx:id="feedbackColumn" prefWidth="150" text="Feedback" />
+                                    </columns>
+                                </TableView>
+                                <HBox spacing="10" alignment="CENTER_LEFT">
+                                    <children>
+                                        <Button fx:id="visualizarButton" text="👀 Visualizar Versão Selecionada"
+                                                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 12px; -fx-padding: 6px 12px;"
+                                                onAction="#onVisualizarVersao"/>
+                                    </children>
+                                </HBox>
+                            </children>
+                        </VBox>
+
+                        <!-- FEEDBACKS -->
+                        <VBox spacing="10" prefWidth="450.0" HBox.hgrow="ALWAYS">
+                            <children>
+                                <Label text="💬 FEEDBACKS DO ORIENTADOR" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                                <TextArea fx:id="feedbackTextArea" prefHeight="150.0" prefWidth="450.0"
+                                          style="-fx-background-color: #fff9e6; -fx-border-color: #ffd966; -fx-border-radius: 5px; -fx-font-size: 12px;"
+                                          editable="false" wrapText="true"/>
+                            </children>
+                        </VBox>
+                    </children>
+                </HBox>
+
+            </children>
+        </VBox>
+    </center>
+</BorderPane>
