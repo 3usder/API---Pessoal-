@@ -1,171 +1,244 @@
 package com.techblue.techblueclient;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.property.SimpleStringProperty;
+
 import java.net.URL;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.ResourceBundle;
 
 public class AlunoDashboardController implements Initializable {
 
     @FXML private TextArea editorTextArea;
     @FXML private TextArea feedbackTextArea;
-    @FXML private TableView<Trabalho> historicoTable;
-    @FXML private TableColumn<Trabalho, String> versaoColumn;
-    @FXML private TableColumn<Trabalho, String> dataColumn;
-    @FXML private TableColumn<Trabalho, String> statusColumn;
+    @FXML private TableView<Trabalho> historicoTableView;
     @FXML private Label statusLabel;
 
-    private int contadorVersoes = 1;
+    private ObservableList<Trabalho> trabalhos = FXCollections.observableArrayList();
+    private Trabalho trabalhoSelecionado;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        System.out.println("🔍 Iniciando teste de conexão...");
+
+        // ✅ TESTAR CONEXÃO E TABELAS
+        DatabaseConnection.testarTabelas();
+
         System.out.println("🚀 Sistema inicializado - Modo Demonstração");
 
-        // Verificar componentes críticos
-        if (editorTextArea == null) System.out.println("⚠️  Editor não encontrado");
-        if (historicoTable == null) System.out.println("⚠️  Tabela não encontrada");
-        if (statusLabel == null) System.out.println("⚠️  Status não encontrado");
+        // ✅ CORRIGIR AS COLUNAS - USANDO OS NOMES DO FXML
+        if (historicoTableView != null && !historicoTableView.getColumns().isEmpty()) {
+            TableColumn<Trabalho, ?> versaoColumn = historicoTableView.getColumns().get(0);
+            TableColumn<Trabalho, ?> dataColumn = historicoTableView.getColumns().get(1);
+            TableColumn<Trabalho, ?> statusColumn = historicoTableView.getColumns().get(2);
+            TableColumn<Trabalho, ?> feedbackColumn = historicoTableView.getColumns().get(3);
 
-        configurarComponentes();
-        carregarDadosDemonstracao();
-        mostrarStatus("✅ Sistema em Modo Demonstração - Pronto para uso!", "sucesso");
-    }
-
-    private void configurarComponentes() {
-        // Configurar tabela se existir
-        if (versaoColumn != null && dataColumn != null && statusColumn != null) {
-            versaoColumn.setCellValueFactory(new PropertyValueFactory<>("versao"));
+            versaoColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
             dataColumn.setCellValueFactory(new PropertyValueFactory<>("dataEnvio"));
             statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
-            System.out.println("✅ Tabela configurada");
+            feedbackColumn.setCellValueFactory(new PropertyValueFactory<>("feedback"));
+        } else {
+            System.out.println("⚠️  Tabela não encontrada, usando configuração manual");
         }
 
-        if (feedbackTextArea != null) {
-            feedbackTextArea.setEditable(false);
-            feedbackTextArea.setText("Área de feedback - Modo demonstração");
-        }
+        // Carregar dados de exemplo se não conectar ao banco
+        carregarDadosDemonstracao();
+
+        // Configurar listeners
+        configurarListeners();
+
+        // Configurar área de texto
+        editorTextArea.setWrapText(true);
+        feedbackTextArea.setWrapText(true);
+
+        System.out.println("✅ Tabela configurada");
+        atualizarStatus("✅ Sistema em Modo Demonstração - Pronto para uso!");
+    }
+
+    private void configurarListeners() {
+        historicoTableView.getSelectionModel().selectedItemProperty().addListener(
+                (observable, oldValue, newValue) -> {
+                    if (newValue != null) {
+                        trabalhoSelecionado = newValue;
+                        editorTextArea.setText(newValue.getConteudo());
+                        feedbackTextArea.setText(newValue.getFeedback());
+                    }
+                }
+        );
     }
 
     private void carregarDadosDemonstracao() {
-        if (historicoTable != null) {
-            List<Trabalho> demonstracao = new ArrayList<>();
-            demonstracao.add(new Trabalho("v1.0", LocalDateTime.now().minusDays(2), "Enviado", "Bom trabalho! Continue assim."));
-            demonstracao.add(new Trabalho("v2.0", LocalDateTime.now().minusDays(1), "Revisado", "Ótimas melhorias na versão 2.0"));
-            demonstracao.add(new Trabalho("v3.0", LocalDateTime.now(), "Rascunho", null));
-
-            historicoTable.getItems().setAll(demonstracao);
-            System.out.println("✅ Dados de demonstração carregados");
+        try {
+            // ✅ TENTAR CARREGAR DO BANCO PRIMEIRO
+            carregarDadosBanco();
+        } catch (Exception e) {
+            // ❌ SE FALHAR, USAR DADOS DE EXEMPLO
+            System.out.println("⚠️  Usando dados de demonstração: " + e.getMessage());
+            trabalhos.addAll(
+                    new Trabalho(1, "Trabalho de Matemática", "Conteúdo do trabalho de matemática...", "rascunho", "", "Nenhum feedback ainda"),
+                    new Trabalho(2, "Projeto de Pesquisa", "Introdução da pesquisa sobre IA...", "enviado", "2024-01-15", "Bom trabalho, mas pode melhorar as referências"),
+                    new Trabalho(3, "Relatório de Física", "Análise dos experimentos realizados...", "corrigido", "2024-01-10", "Excelente relatório! Nota: 9.5")
+            );
+            historicoTableView.setItems(trabalhos);
         }
     }
 
-    // ========== BOTÕES QUE FUNCIONAM SEM MYSQL ==========
+    // ✅ MÉTODO NOVO - Carregar dados do banco MySQL
+    private void carregarDadosBanco() {
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT * FROM trabalhos_aluno")) {
+
+            trabalhos.clear();
+            while (rs.next()) {
+                Trabalho trabalho = new Trabalho(
+                        rs.getInt("id"),
+                        rs.getString("titulo"),
+                        rs.getString("conteudo"),
+                        rs.getString("status"),
+                        rs.getTimestamp("data_envio") != null ?
+                                rs.getTimestamp("data_envio").toLocalDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "",
+                        rs.getString("feedback")
+                );
+                trabalhos.add(trabalho);
+            }
+            historicoTableView.setItems(trabalhos);
+            System.out.println("✅ Dados carregados do MySQL: " + trabalhos.size() + " trabalhos");
+
+        } catch (SQLException e) {
+            System.out.println("❌ Erro ao carregar dados do banco: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
 
     @FXML
     private void onSalvarRascunho() {
-        if (validarEditor()) {
-            String versao = "v" + (contadorVersoes++) + ".0-Rascunho";
-            adicionarAoTabela(versao, "Rascunho", "Rascunho salvo localmente");
-            mostrarStatus("✅ Rascunho salvo - " + versao, "sucesso");
+        if (trabalhoSelecionado == null) {
+            atualizarStatus("❌ Selecione um trabalho para salvar");
+            return;
         }
+
+        trabalhoSelecionado.setConteudo(editorTextArea.getText());
+        trabalhoSelecionado.setStatus("rascunho");
+        atualizarStatus("✅ Rascunho salvo com sucesso!");
+        historicoTableView.refresh();
     }
 
     @FXML
     private void onEnviarParaRevisao() {
-        if (validarEditor()) {
-            String versao = "v" + (contadorVersoes++) + ".0";
-            adicionarAoTabela(versao, "Enviado", "Aguardando revisão");
-            mostrarStatus("✅ Enviado para revisão - " + versao, "sucesso");
+        if (trabalhoSelecionado == null) {
+            atualizarStatus("❌ Selecione um trabalho para enviar");
+            return;
         }
+
+        trabalhoSelecionado.setConteudo(editorTextArea.getText());
+        trabalhoSelecionado.setStatus("enviado");
+        trabalhoSelecionado.setDataEnvio(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        atualizarStatus("✅ Trabalho enviado para revisão!");
+        historicoTableView.refresh();
     }
 
     @FXML
-    private void onEnviarNovaVersao() {
-        if (validarEditor()) {
-            String versao = "v" + (contadorVersoes++) + ".0";
-            adicionarAoTabela(versao, "Enviado", "Nova versão submetida");
-            mostrarStatus("✅ Nova versão enviada - " + versao, "sucesso");
+    private void enviarNovaVersao() {
+        if (trabalhoSelecionado == null) {
+            atualizarStatus("❌ Selecione um trabalho para nova versão");
+            return;
         }
+
+        trabalhoSelecionado.setConteudo(editorTextArea.getText());
+        trabalhoSelecionado.setStatus("enviado");
+        trabalhoSelecionado.setDataEnvio(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        atualizarStatus("✅ Nova versão enviada!");
+        historicoTableView.refresh();
     }
 
     @FXML
     private void onCancelarEdicao() {
-        if (editorTextArea != null) {
-            editorTextArea.clear();
-            mostrarStatus("🗑️  Edição cancelada - Texto limpo", "sucesso");
+        if (trabalhoSelecionado != null) {
+            editorTextArea.setText(trabalhoSelecionado.getConteudo());
         }
+        atualizarStatus("✅ Edição cancelada - Alterações descartadas");
     }
 
     @FXML
     private void onVisualizarVersao() {
-        if (historicoTable != null) {
-            Trabalho selected = historicoTable.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                mostrarStatus("👁️  Visualizando: " + selected.getVersao(), "sucesso");
-                if (feedbackTextArea != null) {
-                    feedbackTextArea.setText("Feedback: " + selected.getFeedback());
-                }
-            } else {
-                mostrarStatus("📋 Selecione uma versão na tabela", "erro");
-            }
-        } else {
-            mostrarStatus("ℹ️  Tabela não disponível em demonstração", "sucesso");
+        if (trabalhoSelecionado == null) {
+            atualizarStatus("❌ Selecione um trabalho para visualizar");
+            return;
         }
+
+        String versao = String.format(
+                "📋 Trabalho: %s\n📊 Status: %s\n📅 Data: %s\n\n📝 Conteúdo:\n%s\n\n💬 Feedback:\n%s",
+                trabalhoSelecionado.getTitulo(),
+                trabalhoSelecionado.getStatus(),
+                trabalhoSelecionado.getDataEnvio(),
+                trabalhoSelecionado.getConteudo(),
+                trabalhoSelecionado.getFeedback()
+        );
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Visualizar Versão");
+        alert.setHeaderText("Detalhes do Trabalho");
+        alert.setContentText(versao);
+        alert.showAndWait();
     }
 
-    // ========== MÉTODOS AUXILIARES ==========
-
-    private boolean validarEditor() {
-        if (editorTextArea == null) {
-            mostrarStatus("❌ Editor não disponível", "erro");
-            return false;
-        }
-
-        if (editorTextArea.getText().trim().isEmpty()) {
-            mostrarStatus("❌ Digite algum conteúdo antes de salvar", "erro");
-            return false;
-        }
-
-        return true;
+    private void atualizarStatus(String mensagem) {
+        statusLabel.setText("📢 Status: " + mensagem);
+        System.out.println(mensagem);
     }
 
-    private void adicionarAoTabela(String versao, String status, String feedback) {
-        if (historicoTable != null) {
-            Trabalho novoTrabalho = new Trabalho(versao, LocalDateTime.now(), status, feedback);
-            historicoTable.getItems().add(0, novoTrabalho); // Adiciona no início
-        }
-    }
-
-    private void mostrarStatus(String mensagem, String tipo) {
-        if (statusLabel != null) {
-            statusLabel.setText(mensagem);
-            statusLabel.setStyle("-fx-text-fill: " + ("sucesso".equals(tipo) ? "green" : "red") + "; -fx-font-weight: bold;");
-        }
-        System.out.println("📢 Status: " + mensagem);
-    }
-
-    // Classe do trabalho
+    // Classe interna Trabalho
     public static class Trabalho {
-        private final String versao, status, feedback;
-        private final LocalDateTime dataEnvio;
+        private final IntegerProperty id = new SimpleIntegerProperty();
+        private final StringProperty titulo = new SimpleStringProperty();
+        private final StringProperty conteudo = new SimpleStringProperty();
+        private final StringProperty status = new SimpleStringProperty();
+        private final StringProperty dataEnvio = new SimpleStringProperty();
+        private final StringProperty feedback = new SimpleStringProperty();
 
-        public Trabalho(String versao, LocalDateTime dataEnvio, String status, String feedback) {
-            this.versao = versao;
-            this.dataEnvio = dataEnvio;
-            this.status = status;
-            this.feedback = feedback;
+        public Trabalho(int id, String titulo, String conteudo, String status, String dataEnvio, String feedback) {
+            setId(id);
+            setTitulo(titulo);
+            setConteudo(conteudo);
+            setStatus(status);
+            setDataEnvio(dataEnvio);
+            setFeedback(feedback);
         }
 
-        public String getVersao() { return versao; }
-        public String getDataEnvio() {
-            return dataEnvio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
-        }
-        public String getStatus() { return status; }
-        public String getFeedback() { return feedback != null ? feedback : "Sem feedback"; }
+        // Getters e Setters
+        public int getId() { return id.get(); }
+        public void setId(int value) { id.set(value); }
+        public IntegerProperty idProperty() { return id; }
+
+        public String getTitulo() { return titulo.get(); }
+        public void setTitulo(String value) { titulo.set(value); }
+        public StringProperty tituloProperty() { return titulo; }
+
+        public String getConteudo() { return conteudo.get(); }
+        public void setConteudo(String value) { conteudo.set(value); }
+        public StringProperty conteudoProperty() { return conteudo; }
+
+        public String getStatus() { return status.get(); }
+        public void setStatus(String value) { status.set(value); }
+        public StringProperty statusProperty() { return status; }
+
+        public String getDataEnvio() { return dataEnvio.get(); }
+        public void setDataEnvio(String value) { dataEnvio.set(value); }
+        public StringProperty dataEnvioProperty() { return dataEnvio; }
+
+        public String getFeedback() { return feedback.get(); }
+        public void setFeedback(String value) { feedback.set(value); }
+        public StringProperty feedbackProperty() { return feedback; }
     }
 }

@@ -49,7 +49,7 @@
 
                         <Button fx:id="enviarButton" text="📤 Enviar Nova Versão"
                                 style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 15px;"
-                                onAction="#onEnviarNovaVersao"/>
+                                onAction="#enviarNovaVersao"/>
                     </children>
                 </HBox>
 
